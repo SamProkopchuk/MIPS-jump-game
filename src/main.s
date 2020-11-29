@@ -129,20 +129,6 @@ paint_entity:
 	sll $t3, $t3, 2
 	add $t0, $t0, $t3
 	# [$t0 := disp_addr] +=  y * divsu + x
-	move $t8, $a0
-	move $a0, $t3
-	li $v0, 1
-	syscall
-	li $v0, 4
-	la $a0, newline
-	syscall
-	
-	move $a0, $t8
-	li $v0, 1
-	syscall
-	li $v0, 4
-	la $a0, newline
-	syscall
 	dy_LOOPINIT:
 		move $t6, $0
 	dy_WHILE:
