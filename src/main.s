@@ -37,19 +37,13 @@ main:
 		bge $s0, $s1, main_END
 	main_DO:
 		jal update_entities
-		# jal exit_if_game_over
-		# li $v0, 32
-		# li $a0, 200
-		# syscall
-
 		jal paint_entities
 
 		li $v0, 32
-		li $a0, 30
+		li $a0, 100
 		syscall
 
 		jal exit_if_game_over
-
 		jal erase_entities
 
 		addi $s0, $s0, 1
@@ -376,9 +370,6 @@ is_player_on_platform:
 			addi $t3, $t3, 9
 			bgt $t5, $t3, is_player_on_platform_ENDIF
 			is_player_on_platform_TRUE:
-				li $v0, 4
-				la $a0, test
-				syscall ###################################
 				li $v0, 1
 				jr $ra
 		is_player_on_platform_ENDIF:
@@ -393,23 +384,18 @@ is_player_on_platform:
 update_player_velocity:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
+	la $t0, player
 	# Switch ($a0 := key_pressed)
 	# Case 0:
-	la $t0, player
 
-	update_player_velocity_case_0:
-		bne $a0, $0, update_player_x_velocity_endcases
+	update_player_x_velocity_case_0:
+		bne $a0, $0 update_player_x_velocity_case_left
 		move $t1, $0
 		sw $t1, 8($t0)
 		j update_player_x_velocity_endcases
 	update_player_x_velocity_case_left:
 		lw $t1, left_key
 		bne $a0, $t1, update_player_x_velocity_case_right
-		###########################
-		li $v0, 4
-		la $a0, test
-		syscall
-
 		li $t1, -1
 		sw $t1, 8($t0)
 		j update_player_x_velocity_endcases
