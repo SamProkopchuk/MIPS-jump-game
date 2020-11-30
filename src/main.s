@@ -267,17 +267,18 @@ erase_entities:
 
 update_platforms:
 	# $a0 -> scroll
-	IF:
-		bne $a0, $0, ENDIF
-	THEN:
+	update_platforms_IF:
+		beqz $a0, update_platforms_ENDIF
+		# bne $a0, $0, ENDIF
+	update_platforms_THEN:
 		la $t2, platforms
 		lw $t3, divsu
-		LOOPINIT:
+		update_platforms_LOOPINIT:
 			move $t0, $0
 			li $t1, 5
-		WHILE:
-			bge $t0, $t1, END
-		DO:
+		update_platforms_WHILE:
+			bge $t0, $t1, update_platforms_END
+		update_platforms_DO:
 			lw $t4, 8($t2)
 			addi $t4, $t4, 1
 			div $t4, $t3
@@ -285,9 +286,9 @@ update_platforms:
 			sw $t4, 8($t2)
 			addi $t0, $t0, 1
 			addi $t2, $t2, 12
-			j WHILE
-		END:
-	ENDIF:
+			j update_platforms_WHILE
+		update_platforms_END:
+	update_platforms_ENDIF:
 
 	jr $ra
 
@@ -295,7 +296,7 @@ update_platforms:
 update_player:
 	# Assume velocities are correct.
 	# Update position based upon them.
-	# However if players new y pos would be less than 6, then dont change y pos and return ($a0 := 1)
+	# Return (with $v0) 1 if player's new y pos would be less than 6, 0 otherwise
 	la $t0, player
 	lw $t1, 8($t0)
 	lw $t3, scroll_threshold
@@ -307,6 +308,7 @@ update_player:
 		bgt $t1, $0, update_player_x_case_right
 		lw $t2, 0($t0)
 		addi $t2, $t2, -1
+		add $t2, $t2, $t4
 		div $t2, $t4
 		mfhi $t2
 		sw $t2, 0($t0)
@@ -315,6 +317,7 @@ update_player:
 		ble $t1, $0, update_player_x_endcases
 		lw $t2, 0($t0)
 		addi $t2, $t2, 1
+		add $t2, $t2, $t4
 		div $t2, $t4
 		mfhi $t2
 		sw $t2, 0($t0)
@@ -329,23 +332,24 @@ update_player:
 		lw $t2, 4($t0)
 		addi $t2, $t2, 1
 		sw $t2, 4($t0)
-		j update_player_y_velocity_endcases
+		j update_player_y_endcases
 	update_player_y_case_up:
 		bgt $t1, $0, update_player_y_endcases
 		lw $t2, 4($t0)
 		addi $t2, $t2, -1
+		# Set $v0 to 1 if should scroll
 		update_player_y_IF:
-			bgt $t2, $t3, update_player_y_ELSE
+			bge $t2, $t3, update_player_y_ELSE
 		update_player_y_THEN:
 			li $v0, 1
 			j update_player_y_ENDIF
 		update_player_y_ELSE:
+			# If no scroll then actually update the y pos
 			li $v0, 0
 			sw $t2, 4($t0)
 		update_player_y_ENDIF:
-		j update_player_y_velocity_endcases
+		j update_player_y_endcases
 	update_player_y_endcases:
-	# Set $v0 to 1 if should scroll
 	jr $ra
 
 
@@ -455,12 +459,10 @@ update_entities:
 	# First get key press
 	jal get_key_pressed
 	move $a0, $v0
-
-	li $v0, 1
-	syscall
 	# Update player then platforms
 	jal update_player_velocity
-	jal update_player
+	jal update_player # Note update player returns $v0 := [should scroll]
+	move $a0, $v0
 	jal update_platforms
 
 	lw $ra, 0($sp)
