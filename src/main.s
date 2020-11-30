@@ -1,8 +1,9 @@
 .data
 	# iskeypressed_address: .word  0xFFFF0000
 	# key_address:          .word  0xFFFF0004
-	left_key:             .word  0x6A
-	right_key:            .word  0x6B
+	left_key:             .word  0x6A # j
+	right_key:            .word  0x6B # k
+	start_key:            .word  0x73 # s
 	display_address:      .word	 0x10008000
 	# divsu stands for div size // unit
 	# Or in other words screen_size / pixels_per_unit
@@ -25,6 +26,13 @@
 
 .text
 main:
+	lw $s2, start_key
+	main_MENU:
+	jal get_key_pressed
+	bne $v0, $s2, main_MENU
+
+	main_START:
+
 	lw $a0, bg
 	jal paint_bg
 	jal init_entities
@@ -251,6 +259,7 @@ paint_entities:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	jr $ra
+
 
 erase_entities:
 	addi $sp, $sp, -4
@@ -504,6 +513,11 @@ update_entities:
 	# First get key press
 	jal get_key_pressed
 	move $a0, $v0
+
+	#Go to menu if start_key pressed
+	lw $t0, start_key
+	beq $a0, $t0, main_MENU
+
 	# Update player then platforms
 	jal update_player_velocity
 	jal update_player # Note update player returns $v0 := [should scroll]
