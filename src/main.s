@@ -40,7 +40,7 @@ main:
 		jal paint_entities
 
 		li $v0, 32
-		li $a0, 30
+		li $a0, 70
 		syscall
 
 		jal exit_if_game_over
@@ -176,7 +176,7 @@ paint_platforms:
 		bge $t1, $t2, paint_platforms_END
 	paint_platforms_DO:
 		lw $t4, 0($t0)
-		beqz $t4, paint_platforms_UPDATE
+		# beqz $t4, paint_platforms_UPDATE
 		lw $t4, 4($t0)
 		sw $t4, 0($t3)
 		lw $t4, 8($t0)
@@ -265,6 +265,18 @@ erase_entities:
 	jr $ra
 
 
+init_platform:
+	# Given $a0 := address of single platform, randomly reinitialize it at the top
+	move $t0, $a0
+	sw $0, 0($t0)
+	sw $0, 8($t0)
+	li $v0, 42
+	li $a1, 23
+	syscall
+	sw $a0, 4($t0)
+	jr $ra
+
+
 update_platforms:
 	# $a0 -> scroll
 	update_platforms_IF:
@@ -281,9 +293,42 @@ update_platforms:
 		update_platforms_DO:
 			lw $t4, 8($t2)
 			addi $t4, $t4, 1
-			div $t4, $t3
-			mfhi $t4
-			sw $t4, 8($t2)
+
+			bne $t4, $t3, update_platforms_case_no_reinitialize
+			update_platforms_case_reinitialize:
+				addi $sp, $sp -4
+				sw $t0, 0($sp)
+				addi $sp, $sp -4
+				sw $t1, 0($sp)
+				addi $sp, $sp -4
+				sw $t2, 0($sp)
+				addi $sp, $sp -4
+				sw $t3, 0($sp)
+				addi $sp, $sp -4
+				sw $t4, 0($sp)
+				addi $sp, $sp -4
+				sw $ra, 0($sp)
+
+				move $a0, $t2
+				jal init_platform
+
+				lw $ra, 0($sp)
+				addi $sp, $sp, 4
+				lw $t4, 0($sp)
+				addi $sp, $sp, 4
+				lw $t3, 0($sp)
+				addi $sp, $sp, 4
+				lw $t2, 0($sp)
+				addi $sp, $sp, 4
+				lw $t1, 0($sp)
+				addi $sp, $sp, 4
+				lw $t0, 0($sp)
+				addi $sp, $sp, 4
+
+				j update_platforms_endcases
+			update_platforms_case_no_reinitialize:
+				sw $t4, 8($t2)
+			update_platforms_endcases:
 			addi $t0, $t0, 1
 			addi $t2, $t2, 12
 			j update_platforms_WHILE
