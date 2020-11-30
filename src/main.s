@@ -32,15 +32,15 @@ main:
 	main_LOOPINIT:
 		move $s0, $0
 		li $s1, 1
-		sll $s1, $s1, 10
+		sll $s1, $s1, 6
 	main_WHILE:
-		bge $s0, $s1, main_END
+		# bge $s0, $s1, main_END
 	main_DO:
 		jal update_entities
 		jal paint_entities
 
 		li $v0, 32
-		li $a0, 100
+		li $a0, 30
 		syscall
 
 		jal exit_if_game_over
