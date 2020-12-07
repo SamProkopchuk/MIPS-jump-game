@@ -1,28 +1,40 @@
 .data
 	# iskeypressed_address: .word  0xFFFF0000
 	# key_address:          .word  0xFFFF0004
-	left_key:             .word  0x6A # j
-	right_key:            .word  0x6B # k
-	start_key:            .word  0x73 # s
-	display_address:      .word	 0x10008000
+	left_key:           .word   0x6A # j
+	right_key:          .word   0x6B # k
+	start_key:          .word   0x73 # s
+	b10_3x5_pixels:     .byte   1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1 # 0
+						.byte 	0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0 # 1
+						.byte	1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1 # 2
+						.byte	1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0 # 3
+						.byte	1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1 # 4
+						.byte	1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0 # 5
+						.byte	0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0 # 6
+						.byte	1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0 # 7
+						.byte	0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0 # 8
+						.byte	0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0 # 9
+	score:              .word   0
+	display_address:    .word	0x10008000
 	# divsu stands for div size // unit
 	# Or in other words screen_size / pixels_per_unit
-	divsu:                .word  32 # 512 // 16 is a good one.
+	divsu:              .word   32 # 512 // 16 is a good one.
 	# entity_xywh will store the x, y, w, h info of an entity.
 	# It will allow the paint_entity function's code to be a lot cleaner.
-	entity_xywh:          .space 16
+	entity_xywh:        .space  16
 	# The player is a struct with 4 words.
 	# x, y, xvel, yvel
-	player:               .space 16
+	player:             .space  16
 	# Each platform is a struct with 3 words
 	# horizontal_vel, x, y
 	# And we will have up to 5 platforms. => 5x3x4
-	platforms:            .space 60
-	scroll_threshold:     .word  6
-	bg:                   .word  0xfffdd0
-	platform_color:       .word  0x388e3c
-	player_color:         .word  0x000000
-	test:                 .asciiz "TEST\n"
+	platforms:          .space  60
+	scroll_threshold:   .word   6
+	bg:                 .word   0x424242
+	platform_color:     .word   0x00e5ff
+	player_color:       .word   0xffffff
+	score_color:        .word   0x757575
+	newline:               .asciiz "\n"
 
 .text
 main:
@@ -32,29 +44,24 @@ main:
 	bne $v0, $s2, main_MENU
 
 	main_START:
-
 	lw $a0, bg
 	jal paint_bg
+
 	jal init_entities
 
 	main_LOOPINIT:
-		move $s0, $0
-		li $s1, 1
-		sll $s1, $s1, 6
 	main_WHILE:
-		# bge $s0, $s1, main_END
 	main_DO:
 		jal update_entities
 		jal paint_entities
 
 		li $v0, 32
-		li $a0, 70
+		li $a0, 30
 		syscall
 
 		jal exit_if_game_over
 		jal erase_entities
 
-		addi $s0, $s0, 1
 		j main_WHILE
 	main_END:
 exit:
@@ -247,10 +254,68 @@ paint_player:
 	jr $ra
 
 
+paint_score:
+	lw $t0, score
+	lw $t1, divsu
+	la $t2, b10_3x5_pixels
+	lw $t9, display_address
+	paint_score_LOOPINIT:
+		move $t3, $t1
+		addi $t3, $t3, -3
+	paint_score_WHILE:
+		blt $t3, $0, paint_score_END
+	paint_score_DO:
+		li $t6, 10
+		div $t0, $t6
+		mflo $t0
+		mfhi $t7
+		li $t6, 15
+		mul $t7, $t7, $t6
+
+		addu $t7, $t7, $t2
+		paint_score_drow_LOOPINIT:
+			li $t4, 0
+		paint_score_drow_WHILE:
+			li $t6, 5
+			bge $t4, $t6, paint_score_drow_END
+		paint_score_drow_DO:
+			paint_score_dcol_LOOPINIT:
+				li $t5, 0
+			paint_score_dcol_WHILE:
+				li $t6, 3
+				bge $t5, $t6, paint_score_dcol_END
+			paint_score_dcol_DO:
+				lbu $t6, 0($t7)
+				beqz $t6, paint_score_dcol_UPDATE
+				# Calculate the display address of number's pixel:
+				mul $t6, $t1, $t4
+				add $t6, $t6, $t3
+				add $t6, $t6, $t5
+				sll $t6, $t6, 2
+				add $t6, $t6, $t9
+				# Finally we have $t6 =
+				# DISP_ADDR + 4 * ((n + dcol) + drow * divsu)
+				sw $a0, 0($t6)
+			paint_score_dcol_UPDATE:
+				addi $t7, $t7, 1
+				addi $t5, $t5, 1
+				j paint_score_dcol_WHILE
+			paint_score_dcol_END:
+			addi $t4, $t4, 1
+			j paint_score_drow_WHILE
+		paint_score_drow_END:
+		addi $t3, $t3, -4
+		j paint_score_WHILE
+	paint_score_END:
+	jr $ra
+
+
 paint_entities:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 
+	lw $a0, score_color
+	jal paint_score
 	lw $a0, platform_color
 	jal paint_platforms
 	lw $a0, player_color
@@ -266,6 +331,7 @@ erase_entities:
 	sw $ra, 0($sp)
 
 	lw $a0, bg
+	jal paint_score
 	jal paint_platforms
 	jal paint_player
 	lw $ra, 0($sp)
@@ -505,6 +571,14 @@ get_key_pressed:
 	get_key_pressed_ENDIF:
 	jr $ra
 
+update_score:
+	beqz $a0, update_score_return
+	lw $t0, score
+	addi $t0, $t0, 1
+	sw $t0, score
+	update_score_return:
+	jr $ra
+
 
 update_entities:
 	addi $sp, $sp, -4
@@ -523,6 +597,7 @@ update_entities:
 	jal update_player # Note update player returns $v0 := [should scroll]
 	move $a0, $v0
 	jal update_platforms
+	jal update_score
 
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
