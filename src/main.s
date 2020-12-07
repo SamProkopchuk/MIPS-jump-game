@@ -23,8 +23,8 @@
 	# It will allow the paint_entity function's code to be a lot cleaner.
 	entity_xywh:        .space  16
 	# The player is a struct with 4 words.
-	# x, y, xvel, yvel
-	player:             .space  16
+	# x, y, xvel, yvel, ypxdelta
+	player:             .space  20
 	# Each platform is a struct with 3 words
 	# horizontal_vel, x, y
 	# And we will have up to 5 platforms. => 5x3x4
@@ -90,12 +90,12 @@ paint_bg:
 
 init_platforms:
 	la $t0, platforms
-	li $t5, 31
+	lw $t5, divsu
+	addi $t5, $t5, -1
 	# First add platform 0 which will
 	# be the one the player starts on:
 
-	li $t1, 1
-	sw $t1, 0($t0)
+	sw $0, 0($t0)
 	li $t1, 10
 	sw $t1, 4($t0)
 	sw $t5, 8($t0)
@@ -109,8 +109,7 @@ init_platforms:
 		bge $t2, $t3, init_platforms_END
 	init_platforms_DO:
 		sub $t5, $t5, $t4
-		li $t1, 1
-		sw $t1, 0($t0)
+		sw $0, 0($t0)
 		li $v0, 42
 		li $a1, 23
 		syscall
@@ -344,7 +343,25 @@ erase_entities:
 init_platform:
 	# Given $a0 := address of single platform, randomly reinitialize it at the top
 	move $t0, $a0
-	sw $0, 0($t0)
+
+	lw $t1, score
+	addi $t1, $t1, 1
+    li $t2, 2000
+    bgt $t1, $t2, init_platform_move
+    div $t2, $t2, $t1
+    addi $a1, $t2, 1
+    li $v0, 42
+    syscall
+    beqz $a0, init_platform_move
+    sw $0, 0($t0)
+    j init_platform_no_move
+    init_platform_move:
+    li $a1, 3
+    li $v0, 42
+    syscall
+    addi $a0, $a0, -1
+    sw $a0, 0($t0)
+    init_platform_no_move:
 	sw $0, 8($t0)
 	li $v0, 42
 	li $a1, 23
@@ -355,61 +372,79 @@ init_platform:
 
 update_platforms:
 	# $a0 -> scroll
-	update_platforms_IF:
-		beqz $a0, update_platforms_ENDIF
-		# bne $a0, $0, ENDIF
-	update_platforms_THEN:
-		la $t2, platforms
-		lw $t3, divsu
-		update_platforms_LOOPINIT:
-			move $t0, $0
-			li $t1, 5
-		update_platforms_WHILE:
-			bge $t0, $t1, update_platforms_END
-		update_platforms_DO:
-			lw $t4, 8($t2)
-			addi $t4, $t4, 1
+	la $t2, platforms
+	lw $t3, divsu
+	update_platforms_LOOPINIT:
+		move $t0, $0
+		li $t1, 5
+	update_platforms_WHILE:
+		bge $t0, $t1, update_platforms_END
+	update_platforms_DO:
+		# Check if platform moves left/right
+		lw $t4, 0($t2)
+		beqz $t4, update_platforms_NO_MOVE
+		lw $t5, 4($t2)
+		beqz $t5, update_platforms_MOVE_RIGHT
+		addi $t6, $t5, 10
+		beq $t6, $t3, update_platforms_MOVE_LEFT
+		j update_platforms_UPDATE_MOVE
+		update_platforms_MOVE_RIGHT:
+		li $t4, 1
+		sw $t4, 0($t2)
+		j update_platforms_UPDATE_MOVE
+		update_platforms_MOVE_LEFT:
+		li $t4, -1
+		sw $t4, 0($t2)
+		j update_platforms_UPDATE_MOVE
+		update_platforms_UPDATE_MOVE:
+		add $t5, $t5, $t4
 
-			bne $t4, $t3, update_platforms_case_no_reinitialize
-			update_platforms_case_reinitialize:
-				addi $sp, $sp -4
-				sw $t0, 0($sp)
-				addi $sp, $sp -4
-				sw $t1, 0($sp)
-				addi $sp, $sp -4
-				sw $t2, 0($sp)
-				addi $sp, $sp -4
-				sw $t3, 0($sp)
-				addi $sp, $sp -4
-				sw $t4, 0($sp)
-				addi $sp, $sp -4
-				sw $ra, 0($sp)
+		sw $t5, 4($t2)
+		update_platforms_NO_MOVE:
 
-				move $a0, $t2
-				jal init_platform
+		beqz $a0, update_platforms_endcases
 
-				lw $ra, 0($sp)
-				addi $sp, $sp, 4
-				lw $t4, 0($sp)
-				addi $sp, $sp, 4
-				lw $t3, 0($sp)
-				addi $sp, $sp, 4
-				lw $t2, 0($sp)
-				addi $sp, $sp, 4
-				lw $t1, 0($sp)
-				addi $sp, $sp, 4
-				lw $t0, 0($sp)
-				addi $sp, $sp, 4
+		lw $t4, 8($t2)
+		addi $t4, $t4, 1
+		bne $t4, $t3, update_platforms_case_no_reinitialize
+		update_platforms_case_reinitialize:
+			addi $sp, $sp -4
+			sw $t0, 0($sp)
+			addi $sp, $sp -4
+			sw $t1, 0($sp)
+			addi $sp, $sp -4
+			sw $t2, 0($sp)
+			addi $sp, $sp -4
+			sw $t3, 0($sp)
+			addi $sp, $sp -4
+			sw $t4, 0($sp)
+			addi $sp, $sp -4
+			sw $ra, 0($sp)
 
-				j update_platforms_endcases
-			update_platforms_case_no_reinitialize:
-				sw $t4, 8($t2)
-			update_platforms_endcases:
-			addi $t0, $t0, 1
-			addi $t2, $t2, 12
-			j update_platforms_WHILE
-		update_platforms_END:
-	update_platforms_ENDIF:
+			move $a0, $t2
+			jal init_platform
+
+			lw $ra, 0($sp)
+			addi $sp, $sp, 4
+			lw $t4, 0($sp)
+			addi $sp, $sp, 4
+			lw $t3, 0($sp)
+			addi $sp, $sp, 4
+			lw $t2, 0($sp)
+			addi $sp, $sp, 4
+			lw $t1, 0($sp)
+			addi $sp, $sp, 4
+			lw $t0, 0($sp)
+			addi $sp, $sp, 4
+
+			j update_platforms_endcases
+		update_platforms_case_no_reinitialize:
+			sw $t4, 8($t2)
+		update_platforms_endcases:
+		addi $t0, $t0, 1
+		addi $t2, $t2, 12
+		j update_platforms_WHILE
+	update_platforms_END:
 
 	jr $ra
 
