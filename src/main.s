@@ -55,8 +55,9 @@ main:
 		jal update_entities
 		jal paint_entities
 
+		jal calculate_sleep_time
+		move $a0, $v0
 		li $v0, 32
-		li $a0, 30
 		syscall
 
 		jal exit_if_game_over
@@ -602,6 +603,19 @@ update_entities:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	jr $ra
+
+
+calculate_sleep_time:
+    lw $t0, score
+    li $t1, 100
+    div $t0, $t0, $t1
+    li $t1, 60
+    sub $v0, $t1, $t0
+    li $t0, 30
+    bge $v0, $t0, calculate_sleep_time_RETURN
+    move $v0, $t0
+    calculate_sleep_time_RETURN:
+    jr $ra
 
 
 exit_if_game_over:
