@@ -14,7 +14,34 @@
 						.byte	1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0 # 7
 						.byte	0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0 # 8
 						.byte	0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0 # 9
-	score:              .word   0
+	letter_3x5_pixels:  .byte   0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1 # a
+						.byte   1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0 # b
+						.byte   0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0 # c
+						.byte   1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0 # d
+						.byte   1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1 # e
+						.byte   1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0 # f
+						.byte   0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1 # g
+						.byte   1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1 # h
+						.byte   0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1 # i
+						.byte   0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0 # j
+						.byte   1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1 # k
+						.byte   1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1 # l
+						.byte   1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1 # m
+						.byte   1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1 # n
+						.byte   0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0 # o
+						.byte   1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0 # p
+						.byte   0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1 # q
+						.byte   1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1 # r
+						.byte   0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0 # s
+						.byte   1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0 # t
+						.byte   1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1 # u
+						.byte   1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0 # v
+						.byte   1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1 # w
+						.byte   1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1 # x
+						.byte   1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0 # y
+						.byte   1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1 # z
+	message:            .word   0      # {0: None, 1: 'press s to start', 2: 'nice!', 3: 'ggwp'}
+	score:              .word   4000
 	display_address:    .word	0x10008000
 	# divsu stands for div size // unit
 	# Or in other words screen_size / pixels_per_unit
@@ -29,16 +56,22 @@
 	# horizontal_vel, x, y
 	# And we will have up to 5 platforms. => 5x3x4
 	platforms:          .space  60
+	# Exists, x, y
+	jet_pack:           .space  12
 	scroll_threshold:   .word   6
 	bg:                 .word   0x424242
 	platform_color:     .word   0x00e5ff
 	player_color:       .word   0xffffff
 	score_color:        .word   0x757575
+	jet_pack_color:     .word   0x00e676
+	text_color:         .word   0xcfd8dc
 	newline:               .asciiz "\n"
 
 .text
 main:
 	lw $s2, start_key
+	main_show_menu:
+	jal show_menu
 	main_MENU:
 	jal get_key_pressed
 	bne $v0, $s2, main_MENU
@@ -66,6 +99,7 @@ main:
 		j main_WHILE
 	main_END:
 exit:
+	jal show_endgame
 	li $v0, 10
 	syscall
 
@@ -133,12 +167,32 @@ init_player:
 	jr $ra
 
 
+init_jet_pack:
+	lw $t0, score
+	la $t1 jet_pack
+	li $t2, 200
+	sw $0, 0($t1)
+	blt $t0, $t2, init_jet_pack_RETURN
+	li $t2, 1
+	sw $t2, 0($t1)
+	lw $t3, divsu
+	li $a1, 500
+	li $v0, 42
+	syscall
+	bge $a0, $t3, init_jet_pack_RETURN
+	sw $a0, 4($t1)
+	sw $0, 8($t1)
+	init_jet_pack_RETURN:
+	jr $ra
+
+
 init_entities:
 	addi $sp, $sp, -4
 	# Push $ra onto the stack
     sw $ra, 0($sp)
 	jal init_platforms
 	jal init_player
+	jal init_jet_pack
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	jr $ra
@@ -310,6 +364,30 @@ paint_score:
 	jr $ra
 
 
+paint_jet_pack:
+	la $t0, jet_pack
+	lw $t1, 0($t0)
+	beqz $t1, paint_jet_pack_RETURN
+
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	la $t2, entity_xywh
+	lw $t1, 4($t0)
+	sw $t1, 0($t2)
+	lw $t1, 8($t0)
+	sw $t1, 4($t2)
+	li $t1, 1
+	sw $t1, 8($t2)
+	sw $t1, 12($t2)
+	jal paint_entity
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	paint_jet_pack_RETURN:
+	jr $ra
+
+
 paint_entities:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
@@ -320,6 +398,8 @@ paint_entities:
 	jal paint_platforms
 	lw $a0, player_color
 	jal paint_player
+	lw $a0, jet_pack_color
+	jal paint_jet_pack
 
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
@@ -334,6 +414,7 @@ erase_entities:
 	jal paint_score
 	jal paint_platforms
 	jal paint_player
+	jal paint_jet_pack
 	lw $ra, 0($sp)
 
 	addi $sp, $sp, 4
@@ -491,6 +572,14 @@ update_player:
 		j update_player_y_endcases
 	update_player_y_case_up:
 		bgt $t1, $0, update_player_y_endcases
+		lw $t4, 16($t0)
+		add $t4, $t4, $t1
+		li $t5, -8
+		ble $t4, $t5, update_player_y_FR
+		sw $t4, 16($t0)
+		j update_player_y_endcases
+		update_player_y_FR:
+		sw $0, 16($t0)
 		lw $t2, 4($t0)
 		addi $t2, $t2, -1
 		# Set $v0 to 1 if should scroll
@@ -577,7 +666,7 @@ update_player_velocity:
 		j update_player_y_velocity_case_not_on_platform
 	update_player_y_velocity_case_on_platform:
 		beqz $v0, update_player_y_velocity_case_not_on_platform
-		li $t1, -10
+		li $t1, -14
 		j update_player_y_velocity_endcases
 	update_player_y_velocity_case_not_on_platform:
 		bne $v0, $0, update_player_y_velocity_endcases
@@ -587,8 +676,54 @@ update_player_velocity:
 	update_player_y_velocity_endcases:
 	sw $t1, 12($t0)
 
+	# Check if touching jet pack:
+	la $t1, jet_pack
+	lw $t2, 0($t1)
+	beqz $t2, update_player_velocity_RETURN
+	lw $t2, 0($t0)
+	lw $t3, 4($t0)
+	lw $t4, 4($t1)
+	lw $t5, 8($t1)
+	bne $t2, $t4, update_player_velocity_RETURN
+	bne $t3, $t5, update_player_velocity_RETURN
+	sw $0, 0($t1)
+	li $t1, -100
+	sw $t1, 12($t0)
+
+	update_player_velocity_RETURN:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
+	jr $ra
+
+
+update_jet_pack:
+	move $t9, $a0
+	la $t0, jet_pack
+	lw $t1, 0($t0)
+	bgt $t1, $0, update_jet_pack_Y
+	lw $t2, score
+	li $t3, 200
+	blt $t2, $t3, update_jet_pack_RETURN
+	li $a1, 400
+	li $v0, 42
+	syscall
+	lw $t3, divsu
+	bge $a0, $t3, update_jet_pack_RETURN
+	li $t2, 1
+	sw $t2, 0($t0)
+	sw $a0, 4($t0)
+	sw $0, 8($t0)
+	j update_jet_pack_RETURN
+	update_jet_pack_Y:
+		beqz $t9, update_jet_pack_RETURN
+		lw $t2, 8($t0)
+		addi $t2, $t2, 1
+		lw $t3, divsu
+		bne $t2, $t3, update_jet_pack_NOT_BOTTOM
+		sw $0, 0($t0)
+	update_jet_pack_NOT_BOTTOM:
+		sw $t2, 8($t0)
+	update_jet_pack_RETURN:
 	jr $ra
 
 
@@ -606,6 +741,7 @@ get_key_pressed:
 		li $v0, 0
 	get_key_pressed_ENDIF:
 	jr $ra
+
 
 update_score:
 	beqz $a0, update_score_return
@@ -626,13 +762,14 @@ update_entities:
 
 	#Go to menu if start_key pressed
 	lw $t0, start_key
-	beq $a0, $t0, main_MENU
+	beq $a0, $t0, main_show_menu
 
 	# Update player then platforms
 	jal update_player_velocity
 	jal update_player # Note update player returns $v0 := [should scroll]
 	move $a0, $v0
 	jal update_platforms
+	jal update_jet_pack
 	jal update_score
 
 	lw $ra, 0($sp)
@@ -651,6 +788,208 @@ calculate_sleep_time:
     move $v0, $t0
     calculate_sleep_time_RETURN:
     jr $ra
+
+
+show_menu:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	lw $a0, bg
+	jal paint_bg
+	lw $a0, score_color
+	jal paint_score
+
+	lw $a0, text_color
+	lw $t0, display_address
+	addi $t0, $t0, 4
+	lw $t1, divsu
+	sll $t1, $t1, 2
+	li $t2, 6
+	mul $t2, $t1, $t2
+	add $t0, $t0, $t2
+	sw $a0, 0($t0)
+	sw $a0, 4($t0)
+	sw $a0, 16($t0)
+	sw $a0, 20($t0)
+	sw $a0, 32($t0)
+	sw $a0, 36($t0)
+	sw $a0, 40($t0)
+	sw $a0, 52($t0)
+	sw $a0, 56($t0)
+	sw $a0, 68($t0)
+	sw $a0, 72($t0)
+	sw $a0, 100($t0)
+	sw $a0, 104($t0)
+	add $t0, $t0, $t1
+	sw $a0, 0($t0)
+	sw $a0, 8($t0)
+	sw $a0, 16($t0)
+	sw $a0, 24($t0)
+	sw $a0, 32($t0)
+	sw $a0, 48($t0)
+	sw $a0, 64($t0)
+	sw $a0, 96($t0)
+	add $t0, $t0, $t1
+	sw $a0, 0($t0)
+	sw $a0, 4($t0)
+	sw $a0, 16($t0)
+	sw $a0, 20($t0)
+	sw $a0, 32($t0)
+	sw $a0, 36($t0)
+	sw $a0, 40($t0)
+	sw $a0, 52($t0)
+	sw $a0, 68($t0)
+	sw $a0, 100($t0)
+	add $t0, $t0, $t1
+	sw $a0, 0($t0)
+	sw $a0, 16($t0)
+	sw $a0, 24($t0)
+	sw $a0, 32($t0)
+	sw $a0, 56($t0)
+	sw $a0, 72($t0)
+	sw $a0, 104($t0)
+	add $t0, $t0, $t1
+	sw $a0, 0($t0)
+	sw $a0, 16($t0)
+	sw $a0, 24($t0)
+	sw $a0, 32($t0)
+	sw $a0, 36($t0)
+	sw $a0, 40($t0)
+	sw $a0, 48($t0)
+	sw $a0, 52($t0)
+	sw $a0, 64($t0)
+	sw $a0, 68($t0)
+	sw $a0, 96($t0)
+	sw $a0, 100($t0)
+	add $t0, $t0, $t1
+	add $t0, $t0, $t1
+	sw $a0, 0($t0)
+	sw $a0, 4($t0)
+	sw $a0, 8($t0)
+	sw $a0, 20($t0)
+	sw $a0, 52($t0)
+	sw $a0, 56($t0)
+	sw $a0, 64($t0)
+	sw $a0, 68($t0)
+	sw $a0, 72($t0)
+	sw $a0, 84($t0)
+	sw $a0, 96($t0)
+	sw $a0, 100($t0)
+	sw $a0, 112($t0)
+	sw $a0, 116($t0)
+	sw $a0, 120($t0)
+	add $t0, $t0, $t1
+	sw $a0, 4($t0)
+	sw $a0, 16($t0)
+	sw $a0, 24($t0)
+	sw $a0, 48($t0)
+	sw $a0, 68($t0)
+	sw $a0, 80($t0)
+	sw $a0, 88($t0)
+	sw $a0, 96($t0)
+	sw $a0, 104($t0)
+	sw $a0, 116($t0)
+	add $t0, $t0, $t1
+	sw $a0, 4($t0)
+	sw $a0, 16($t0)
+	sw $a0, 24($t0)
+	sw $a0, 52($t0)
+	sw $a0, 68($t0)
+	sw $a0, 80($t0)
+	sw $a0, 84($t0)
+	sw $a0, 88($t0)
+	sw $a0, 96($t0)
+	sw $a0, 100($t0)
+	sw $a0, 116($t0)
+	add $t0, $t0, $t1
+	sw $a0, 4($t0)
+	sw $a0, 16($t0)
+	sw $a0, 24($t0)
+	sw $a0, 56($t0)
+	sw $a0, 68($t0)
+	sw $a0, 80($t0)
+	sw $a0, 88($t0)
+	sw $a0, 96($t0)
+	sw $a0, 104($t0)
+	sw $a0, 116($t0)
+	add $t0, $t0, $t1
+	sw $a0, 4($t0)
+	sw $a0, 20($t0)
+	sw $a0, 48($t0)
+	sw $a0, 52($t0)
+	sw $a0, 68($t0)
+	sw $a0, 80($t0)
+	sw $a0, 88($t0)
+	sw $a0, 96($t0)
+	sw $a0, 104($t0)
+	sw $a0, 116($t0)
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
+
+show_endgame:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	lw $a0, bg
+	jal paint_bg
+	lw $a0, score_color
+	jal paint_score
+
+	lw $a0, text_color
+	lw $t0, display_address
+	addi $t0, $t0, 4
+	lw $t1, divsu
+	sll $t1, $t1, 2
+	li $t2, 6
+	mul $t2, $t1, $t2
+	add $t0, $t0, $t2
+	sw $a0, 4($t0)
+	sw $a0, 8($t0)
+	sw $a0, 20($t0)
+	sw $a0, 24($t0)
+	sw $a0, 32($t0)
+	sw $a0, 40($t0)
+	sw $a0, 48($t0)
+	sw $a0, 52($t0)
+	add $t0, $t0, $t1
+	sw $a0, 0($t0)
+	sw $a0, 16($t0)
+	sw $a0, 32($t0)
+	sw $a0, 40($t0)
+	sw $a0, 48($t0)
+	sw $a0, 56($t0)
+	add $t0, $t0, $t1
+	sw $a0, 0($t0)
+	sw $a0, 16($t0)
+	sw $a0, 32($t0)
+	sw $a0, 40($t0)
+	sw $a0, 48($t0)
+	sw $a0, 52($t0)
+	add $t0, $t0, $t1
+	sw $a0, 0($t0)
+	sw $a0, 8($t0)
+	sw $a0, 16($t0)
+	sw $a0, 24($t0)
+	sw $a0, 32($t0)
+	sw $a0, 36($t0)
+	sw $a0, 40($t0)
+	sw $a0, 48($t0)
+	add $t0, $t0, $t1
+	sw $a0, 4($t0)
+	sw $a0, 8($t0)
+	sw $a0, 20($t0)
+	sw $a0, 24($t0)
+	sw $a0, 32($t0)
+	sw $a0, 40($t0)
+	sw $a0, 48($t0)
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
 
 
 exit_if_game_over:
