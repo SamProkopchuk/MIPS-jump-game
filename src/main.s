@@ -1,6 +1,6 @@
+
+
 .data
-	# iskeypressed_address: .word  0xFFFF0000
-	# key_address:          .word  0xFFFF0004
 	left_key:           .word   0x6A # j
 	right_key:          .word   0x6B # k
 	start_key:          .word   0x73 # s
@@ -14,35 +14,9 @@
 						.byte	1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0 # 7
 						.byte	0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0 # 8
 						.byte	0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0 # 9
-	letter_3x5_pixels:  .byte   0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1 # a
-						.byte   1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0 # b
-						.byte   0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0 # c
-						.byte   1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0 # d
-						.byte   1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1 # e
-						.byte   1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0 # f
-						.byte   0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1 # g
-						.byte   1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1 # h
-						.byte   0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1 # i
-						.byte   0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0 # j
-						.byte   1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1 # k
-						.byte   1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1 # l
-						.byte   1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1 # m
-						.byte   1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1 # n
-						.byte   0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0 # o
-						.byte   1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0 # p
-						.byte   0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1 # q
-						.byte   1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1 # r
-						.byte   0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0 # s
-						.byte   1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0 # t
-						.byte   1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1 # u
-						.byte   1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0 # v
-						.byte   1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1 # w
-						.byte   1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1 # x
-						.byte   1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0 # y
-						.byte   1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1 # z
-	message:            .word   0      # {0: None, 1: 'press s to start', 2: 'nice!', 3: 'ggwp'}
-	score:              .word   4000
+	score:              .word   0
 	display_address:    .word	0x10008000
+	display_copy:       .space  4096
 	# divsu stands for div size // unit
 	# Or in other words screen_size / pixels_per_unit
 	divsu:              .word   32 # 512 // 16 is a good one.
@@ -64,17 +38,22 @@
 	player_color:       .word   0xffffff
 	score_color:        .word   0x757575
 	jet_pack_color:     .word   0x00e676
-	text_color:         .word   0xcfd8dc
-	newline:               .asciiz "\n"
+	text_color:         .word   0xffab00
+	newline:            .asciiz "\n"
 
 .text
 main:
 	lw $s2, start_key
 	main_show_menu:
 	jal show_menu
+	jal paint_frame
 	main_MENU:
 	jal get_key_pressed
 	bne $v0, $s2, main_MENU
+
+	la $t0, score
+	li $t2, 4000
+	sw $t2, 0($t0)
 
 	main_START:
 	lw $a0, bg
@@ -87,6 +66,7 @@ main:
 	main_DO:
 		jal update_entities
 		jal paint_entities
+		jal paint_frame
 
 		jal calculate_sleep_time
 		move $a0, $v0
@@ -100,12 +80,37 @@ main:
 	main_END:
 exit:
 	jal show_endgame
+	jal paint_frame
 	li $v0, 10
 	syscall
 
 
+paint_frame:
+	la $t0, display_copy 
+	lw $t1, display_address
+
+	li $t2, 4096
+	paint_frame_LOOPINIT:
+		move $t3, $0
+	paint_frame_WHILE:
+		bge $t3, $t2, paint_frame_END
+	paint_frame_DO:
+		lw $t4, 0($t0)
+		lw $t5, 0($t1)
+		beq $t4, $t5, paint_frame_NO_UPDATE_PIXEL
+		sw $t4, 0($t1)
+		paint_frame_NO_UPDATE_PIXEL:
+		addi $t0, $t0, 4
+		addi $t1, $t1, 4
+		addi $t3, $t3, 4
+		j paint_frame_WHILE
+	paint_frame_END:
+
+	jr $ra
+
+
 paint_bg:
-	lw $t0, display_address
+	la $t0, display_copy
 	move $t1, $a0 # The color
 	paint_bg_LOOPINIT:
 		move $t2, $0
@@ -176,7 +181,7 @@ init_jet_pack:
 	li $t2, 1
 	sw $t2, 0($t1)
 	lw $t3, divsu
-	li $a1, 500
+	li $a1, 2000
 	li $v0, 42
 	syscall
 	bge $a0, $t3, init_jet_pack_RETURN
@@ -200,7 +205,7 @@ init_entities:
 
 paint_entity:
 	# $a0 -> color
-	lw $t0, display_address
+	la $t0, display_copy
 	la $t1, entity_xywh
 	lw $t2, 0($t1)  # x
 	lw $t3, 4($t1)  # y
@@ -312,7 +317,7 @@ paint_score:
 	lw $t0, score
 	lw $t1, divsu
 	la $t2, b10_3x5_pixels
-	lw $t9, display_address
+	la $t9, display_copy
 	paint_score_LOOPINIT:
 		move $t3, $t1
 		addi $t3, $t3, -3
@@ -781,9 +786,9 @@ calculate_sleep_time:
     lw $t0, score
     li $t1, 100
     div $t0, $t0, $t1
-    li $t1, 60
+    li $t1, 40
     sub $v0, $t1, $t0
-    li $t0, 30
+    li $t0, 10
     bge $v0, $t0, calculate_sleep_time_RETURN
     move $v0, $t0
     calculate_sleep_time_RETURN:
@@ -800,7 +805,7 @@ show_menu:
 	jal paint_score
 
 	lw $a0, text_color
-	lw $t0, display_address
+	la $t0, display_copy
 	addi $t0, $t0, 4
 	lw $t1, divsu
 	sll $t1, $t1, 2
@@ -939,7 +944,7 @@ show_endgame:
 	jal paint_score
 
 	lw $a0, text_color
-	lw $t0, display_address
+	la $t0, display_copy
 	addi $t0, $t0, 4
 	lw $t1, divsu
 	sll $t1, $t1, 2
